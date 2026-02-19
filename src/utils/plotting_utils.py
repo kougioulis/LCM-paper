@@ -588,8 +588,8 @@ def plot_comparison_fancy(
     if minimal:
         pred_pd = pred_pd.loc[label_pd.columns, label_pd.columns].copy()
 
-    print(f'label_pd column names: {label_pd.columns}')
-    print(f'pred_pd column names: {pred_pd.columns}')
+    #print(f'label_pd column names: {label_pd.columns}')
+    #print(f'pred_pd column names: {pred_pd.columns}')
 
     # color palette
     import seaborn as sns

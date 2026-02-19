@@ -7,11 +7,9 @@ import torch.nn as nn
 from torch.optim import AdamW
 from torchmetrics import MeanAbsoluteError, MeanSquaredError
 
-from src.metrics.dynamic_loss_weighting import MultiNoiseLoss, VanillaMultiLoss
 from src.models.full_informer.model import Informer as model
 from src.utils.utils import binary_metrics, corr_regularization
 
-#from lion_pytorch import Lion #https://github.com/lucidrains/lion-pytorch
 
 class LCMModule(pl.LightningModule):
     def __init__(
@@ -60,9 +58,9 @@ class LCMModule(pl.LightningModule):
         
         # Multi-task loss balancing
         if self.hparams.loss_balancing == "MultiNoiseLoss":
-            self.multi_loss = MultiNoiseLoss(n_losses=2)
+            raise NotImplementedError
         elif self.hparams.loss_balancing == "VanillaMultiLoss":
-            self.multi_loss = VanillaMultiLoss(n_losses=2)
+            raise NotImplementedError
         else:
             self.multi_loss = None
             self.loss_term_scaling = torch.tensor([1.0, 0.75], device=self.device)
@@ -171,12 +169,6 @@ class LCMModule(pl.LightningModule):
                 weight_decay=self.hparams.weight_decay,
                 amsgrad=True
             )
-        #elif self.hparams.optimizer == "Lion":
-        #    optimizer = Lion(
-        #        self.parameters(),
-        #        lr=self.hparams.learning_rate,
-        #        weight_decay=self.hparams.weight_decay
-        #    )
         else:
             raise ValueError(f"Unknown optimizer: {self.hparams.optimizer}")
     
