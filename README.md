@@ -214,9 +214,15 @@ plot_adjacency_heatmaps(
 <img src="assets/heatmap.png" align="middle" />
 
 
-☝️For visualization of the predicted graphs, comparison to ground truth, and additional experiments (ablations, zero-shot transfer, realistic datasets), refer to the accompanying notebook (`illustrative_example.ipynb`).
+```python
+plot_comparison_fancy(label_lagged=Y_cpd, pred_lagged=pred.squeeze(0), X=X_cpd)
+```
 
 <img src="assets/plot_comparison.png" align="middle" />
+
+
+☝️ For additional experiments (ablations, zero-shot transfer, realistic datasets), refer to the accompanying notebook (`illustrative_example.ipynb`).
+
 
 ---
 
