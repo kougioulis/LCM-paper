@@ -1,0 +1,26 @@
+# environment.yaml for running LCMs
+
+name: LCM
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - numpy<2
+  - pandas
+  - scikit-learn
+  - matplotlib
+  - seaborn
+  - tqdm
+  - einops
+  - networkx
+  - pip
+  - ipykernel                  # for running notebooks
+  - pip:
+      - torch --index-url https://download.pytorch.org/whl/cpu
+      - pytorch-lightning==2.0.8
+      - torchmetrics
+      - tigramite
+      - dcor
+      - lingam
+      - prettytable
