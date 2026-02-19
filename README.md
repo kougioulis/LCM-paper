@@ -248,9 +248,9 @@ We believe this input bound reflects a practical trade-off between robust model 
 </details>
 
 
-# 📦 Datasets
+# Datasets
 
-We additionally provide the test sets for the experimental evaluations present in the text, available via Google Drive links. The $f$MRI collections are available in the `data` folder.
+We additionally provide the test sets for the experimental evaluations present in the text, available via Google Drive links. The fMRI collections are available in the `data` folder.
 
 <details>
 <summary><strong>Synthetic</strong></summary>
@@ -320,5 +320,13 @@ We additionally provide the test sets for the experimental evaluations present i
 If you find this work useful, please cite:
 
 ```bibtex
-
+@misc{kougioulis2026large,
+  title        = {Large Causal Models for Temporal Causal Discovery},
+  author       = {Nikolaos Kougioulis and Nikolaos Gkorgkolis and MingXue Wang and Bora Caglayan and Dario Simionato and Andrea Tonon and Ioannis Tsamardinos},
+  year         = {2026},
+  eprint       = {XXXX.XXXXX},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.ML},
+  note         = {arXiv preprint}
+}
 ```
