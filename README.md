@@ -6,7 +6,7 @@
 
 <div align="center">
 
-[![CodeFactor](https://www.codefactor.io/repository/github/kougioulis/lcm-uoc/badge)](https://www.codefactor.io/repository/github/kougioulis/lcm-uoc)
+[![CodeFactor](https://www.codefactor.io/repository/github/kougioulis/LCM-paper/badge)](https://www.codefactor.io/repository/github/kougioulis/LCM-paper)
 ![Python](https://img.shields.io/badge/Python-3.10-blue?logo=python)
 ![PyTorch](https://img.shields.io/badge/PyTorch-black?logo=pytorch)
 ![NumPy](https://img.shields.io/badge/-NumPy-013243?\&logo=NumPy)
@@ -249,35 +249,36 @@ We additionally provide the test sets for the experimental evaluations present i
 
 ### Synthetic
 
-- Synthetic_1 (S_Joint) (3-5 variables)
+- Synthetic_1 (S_Joint) (3-5 variables)  
   [https://drive.google.com/drive/folders/1RB7umIQH2H3F-kIUWVvVJzJfgv12Sxy8](https://drive.google.com/drive/folders/1RB7umIQH2H3F-kIUWVvVJzJfgv12Sxy8)
-- Synthetic_2 (Synth_230K) (3-12 variables)
+- Synthetic_2 (Synth_230K) (3-12 variables)  
   [https://drive.google.com/drive/folders/1iqwnrMHx8sXWJRd6iysrKg13b-PCwwJs](https://drive.google.com/drive/folders/1iqwnrMHx8sXWJRd6iysrKg13b-PCwwJs)
-- CDML (Lawrence et al., 2020)
+- CDML (Lawrence et al., 2020)  
   [https://drive.google.com/drive/folders/1EOIg5J3u_HAHBXP-S7Kgl_cOsG2KjYNn](https://drive.google.com/drive/folders/1EOIg5J3u_HAHBXP-S7Kgl_cOsG2KjYNn)
 
 
 ### Semi-Synthetic (Out-of-distribution - Zero-shot)
 
-- fMRI-5
+- fMRI-5  
   [https://github.com/kougioulis/LCM-paper/tree/main/data/fMRI_5](https://github.com/kougioulis/LCM-paper/tree/main/data/fMRI_5)
-- fMRI
+- fMRI  
   [https://github.com/kougioulis/LCM-paper/tree/main/data/fMRI](https://github.com/kougioulis/LCM-paper/tree/main/data/fMRI)
-- Kuramoto-5
+- Kuramoto-5  
   [https://drive.google.com/drive/folders/1Jh9e7o4c60MDkHykX4tJvjwfWZ-khC8f](https://drive.google.com/drive/folders/1Jh9e7o4c60MDkHykX4tJvjwfWZ-khC8f)
-- Kuramoto-10
+- Kuramoto-10  
   [https://drive.google.com/drive/folders/1MT3u0xvk2Wg9C0QRJ78FF5VMFCFZeKhc](https://drive.google.com/drive/folders/1MT3u0xvk2Wg9C0QRJ78FF5VMFCFZeKhc)
 
 ### Realistic
 
-- SIM (In-distribution)
+- SIM (In-distribution)  
   [https://drive.google.com/drive/folders/1VRi2q4VH7bgxv56lCLOZlUr12sVAyYka](https://drive.google.com/drive/folders/1VRi2q4VH7bgxv56lCLOZlUr12sVAyYka)
-- AirQualityMS (Zero-shot)
+- AirQualityMS (Zero-shot)  
   [https://drive.google.com/drive/folders/15Ix7n-zIRKtJBZUTyfvtkI9bzKtl4M1O](https://drive.google.com/drive/folders/15Ix7n-zIRKtJBZUTyfvtkI9bzKtl4M1O)
+- ...
 
 ### Mixture Collection (Holdout for large-scale models)
 
-- LS (Large-scale) 
+- LS (Large-scale)  
   [https://drive.google.com/drive/folders/1k0cXzh8PgNX5eY3nSpb6vBYPCiYQFRm9](https://drive.google.com/drive/folders/1k0cXzh8PgNX5eY3nSpb6vBYPCiYQFRm9)
 
 ---
