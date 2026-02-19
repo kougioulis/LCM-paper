@@ -248,45 +248,70 @@ We believe this input bound reflects a practical trade-off between robust model 
 </details>
 
 
-## Test Sets
+# 📦 Datasets
 
-We additionally provide the test sets for the experimental evaluations present in the text, available via Google Drive links. The fMRI collections are available in the `data` folder. The synthetic CDML collections is not presented in the main text and can serve as an additional synthetic benchmark.
+We additionally provide the test sets for the experimental evaluations present in the text, available via Google Drive links. The $f$MRI collections are available in the `data` folder.
 
+<details>
+<summary><strong>Synthetic</strong></summary>
 
-### Synthetic
+<br>
 
-- Synthetic_1 (S_Joint) (3-5 variables)  
-  [https://drive.google.com/drive/folders/1RB7umIQH2H3F-kIUWVvVJzJfgv12Sxy8](https://drive.google.com/drive/folders/1RB7umIQH2H3F-kIUWVvVJzJfgv12Sxy8)
-- Synthetic_2 (Synth_230K) (3-12 variables)  
-  [https://drive.google.com/drive/folders/1iqwnrMHx8sXWJRd6iysrKg13b-PCwwJs](https://drive.google.com/drive/folders/1iqwnrMHx8sXWJRd6iysrKg13b-PCwwJs)
-- CDML (Lawrence et al., 2020)  
-  [https://drive.google.com/drive/folders/1EOIg5J3u_HAHBXP-S7Kgl_cOsG2KjYNn](https://drive.google.com/drive/folders/1EOIg5J3u_HAHBXP-S7Kgl_cOsG2KjYNn)
+| Dataset | Description | Link |
+|---|---|---|
+| Synthetic_1 (S_Joint) | 3–5 variables | [📁 Google Drive](https://drive.google.com/drive/folders/1RB7umIQH2H3F-kIUWVvVJzJfgv12Sxy8) |
+| Synthetic_2 (Synth_230K) | 3–12 variables | [📁 Google Drive](https://drive.google.com/drive/folders/1iqwnrMHx8sXWJRd6iysrKg13b-PCwwJs) |
+| CDML (Lawrence et al., 2020) | — | [📁 Google Drive](https://drive.google.com/drive/folders/1EOIg5J3u_HAHBXP-S7Kgl_cOsG2KjYNn) |
 
+</details>
 
-### Semi-Synthetic (Out-of-distribution - Zero-shot)
+---
 
-- fMRI-5  
-  [https://github.com/kougioulis/LCM-paper/tree/main/data/fMRI_5](https://github.com/kougioulis/LCM-paper/tree/main/data/fMRI_5)
-- fMRI  
-  [https://github.com/kougioulis/LCM-paper/tree/main/data/fMRI](https://github.com/kougioulis/LCM-paper/tree/main/data/fMRI)
-- Kuramoto-5  
-  [https://drive.google.com/drive/folders/1Jh9e7o4c60MDkHykX4tJvjwfWZ-khC8f](https://drive.google.com/drive/folders/1Jh9e7o4c60MDkHykX4tJvjwfWZ-khC8f)
-- Kuramoto-10  
-  [https://drive.google.com/drive/folders/1MT3u0xvk2Wg9C0QRJ78FF5VMFCFZeKhc](https://drive.google.com/drive/folders/1MT3u0xvk2Wg9C0QRJ78FF5VMFCFZeKhc)
+<details>
+<summary><strong>Semi-Synthetic <em>(Out-of-distribution — Zero-shot)</em></strong></summary>
 
-### Realistic
+<br>
 
-- SIM (In-distribution)  
-  [https://drive.google.com/drive/folders/1VRi2q4VH7bgxv56lCLOZlUr12sVAyYka](https://drive.google.com/drive/folders/1VRi2q4VH7bgxv56lCLOZlUr12sVAyYka)
-- AirQualityMS (Zero-shot)  
-  [https://drive.google.com/drive/folders/15Ix7n-zIRKtJBZUTyfvtkI9bzKtl4M1O](https://drive.google.com/drive/folders/15Ix7n-zIRKtJBZUTyfvtkI9bzKtl4M1O)
-- ...
+| Dataset | Link |
+|---|---|
+| fMRI-5 | [📁 GitHub](https://github.com/kougioulis/LCM-paper/tree/main/data/fMRI_5) |
+| fMRI | [📁 GitHub](https://github.com/kougioulis/LCM-paper/tree/main/data/fMRI) |
+| Kuramoto-5 | [📁 Google Drive](https://drive.google.com/drive/folders/1Jh9e7o4c60MDkHykX4tJvjwfWZ-khC8f) |
+| Kuramoto-10 | [📁 Google Drive](https://drive.google.com/drive/folders/1MT3u0xvk2Wg9C0QRJ78FF5VMFCFZeKhc) |
 
-### Mixture Collection (Holdout for large-scale models)
+</details>
 
-- LS (Large-scale)  
-  [https://drive.google.com/drive/folders/1k0cXzh8PgNX5eY3nSpb6vBYPCiYQFRm9](https://drive.google.com/drive/folders/1k0cXzh8PgNX5eY3nSpb6vBYPCiYQFRm9)
+---
 
+<details>
+<summary><strong>Realistic</strong></summary>
+
+<br>
+
+| Dataset | Setting | Link |
+|---|---|---|
+| SIM | In-distribution | [📁 Google Drive](https://drive.google.com/drive/folders/1VRi2q4VH7bgxv56lCLOZlUr12sVAyYka) |
+| AirQualityMS | Zero-shot | [📁 Google Drive](https://drive.google.com/drive/folders/15Ix7n-zIRKtJBZUTyfvtkI9bzKtl4M1O) |
+| Garments | Zero-shot | [📁 Google Drive](https://drive.google.com/drive/folders/1vzrJF4egNdOyfsAvH4BUQkBtRJTs9O2v) |
+| Power | Zero-shot | [📁 Google Drive](https://drive.google.com/drive/folders/1-pwIB9bKETI394uF36gDvqvG8D6E0u1x) |
+| Gearbox | Zero-shot | [📁 Google Drive](https://drive.google.com/drive/folders/1pKqvtl_1ptybtj3uADT5OaPifTS6wn5X) |
+| Climate | Zero-shot | [📁 Google Drive](https://drive.google.com/drive/folders/1j2SKdKoGPOSB7rzCR8fOP5XVROVWux43) |
+| ETTm2 | Zero-shot | [📁 Google Drive](https://drive.google.com/drive/folders/1C4Nj9Tc67-L8FSrRF9UU8f5LU8ywGFMP) |
+
+</details>
+
+---
+
+<details>
+<summary><strong>Mixture Collection <em>(Holdout for large-scale models)</em></strong></summary>
+
+<br>
+
+| Dataset | Description | Link |
+|---|---|---|
+| LS | Large-scale | [📁 Google Drive](https://drive.google.com/drive/folders/1k0cXzh8PgNX5eY3nSpb6vBYPCiYQFRm9) |
+
+</details>
 ---
 
 
