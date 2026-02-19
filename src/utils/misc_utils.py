@@ -156,21 +156,23 @@ def count_params(model: torch.nn.Module, pretty: bool=False) -> int:
     else:
         return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
-def get_aligned_aucs(model_data_1, model_data_2):
+
+def get_aligned_aucs(results_a, results_b):
     """
     Align per-sample AUCs from two models.
 
     Expects each input to be an iterable of (sample_id, auc).
+    results_* = list of (sample_id, auc)
     """
-    d1 = dict(model_data_1)
-    d2 = dict(model_data_2)
 
-    common_keys = sorted(d1.keys() & d2.keys())
-    if len(common_keys) == 0:
-        raise ValueError("No shared samples between models.")
+    dict_a = dict(results_a)
+    dict_b = dict(results_b)
 
-    scores_a = [d1[k] for k in common_keys]
-    scores_b = [d2[k] for k in common_keys]
+    common_ids = sorted(set(dict_a.keys()) & set(dict_b.keys()))
+
+    scores_a = [dict_a[i] for i in common_ids]
+    scores_b = [dict_b[i] for i in common_ids]
+
     return scores_a, scores_b
 
 
@@ -186,66 +188,193 @@ def aggregate_across_runs(per_sample_results):
         ]
     return aggregated
 
+def summarize_against_reference_model(pairwise_df, reference_model):
+    rows = pairwise_df[
+        (pairwise_df["model_a"] == reference_model) |
+        (pairwise_df["model_b"] == reference_model)
+    ].copy()
 
-def perform_wilcoxon_test(
-    per_sample_results: dict,
-    metric: str = "AUC",
-    adjust_for_multiple_tests: bool = True,
-    alpha: float = 0.05,
-) -> pd.DataFrame:
+    def normalize(row):
+        if row["model_a"] == reference_model:
+            return {
+                "model": row["model_b"],
+                "mean_b": row["mean_b"],
+                "std_b": row["std_b"],
+                "median_delta": -row["median_delta"],
+                "mean_delta": -row["mean_delta"],
+                "raw_p_value": row["raw_p_value"],
+                "adjusted_alpha": row["adjusted_alpha"],
+                "significant": row["significant_after_correction"],
+            }
+        else:
+            return {
+                "model": row["model_a"],
+                "mean_a": row["mean_a"],
+                "std_a": row["std_a"],
+                "median_delta": row["median_delta"],
+                "mean_delta": row["mean_delta"],
+                "raw_p_value": row["raw_p_value"],
+                "adjusted_alpha": row["adjusted_alpha"],
+                "significant": row["significant_after_correction"],
+            }
+
+    return pd.DataFrame(rows.apply(normalize, axis=1).tolist())
+
+
+def bootstrap_paired_delta(
+    delta: np.ndarray,
+    n_boot: int = 2000,
+    ci: float = 95,
+    statistic: str = "mean",
+    seed: int = 0,
+):
     """
-    Performs pairwise Wilcoxon signed-rank tests on aligned per-sample metrics.
+    Paired bootstrap confidence interval for delta = scores_a - scores_b.
+
+    Args:
+        delta: 1D array of paired differences
+        n_boot: number of bootstrap resamples
+        ci: confidence level (e.g., 95)
+        statistic: "mean" or "median"
+        seed: random seed
 
     Returns:
-        pd.DataFrame with pairwise test results.
+        (center, ci_low, ci_high)
+    """
+    assert statistic in {"mean", "median"}
+
+    rng = np.random.default_rng(seed)
+    n = len(delta)
+
+    if n < 5:
+        return np.nan, np.nan, np.nan
+
+    idx = rng.integers(0, n, size=(n_boot, n))
+    samples = delta[idx]
+
+    if statistic == "mean":
+        stats = samples.mean(axis=1)
+        center = delta.mean()
+    else:
+        stats = np.median(samples, axis=1)
+        center = np.median(delta)
+
+    alpha = (100 - ci) / 2
+    lo = np.percentile(stats, alpha)
+    hi = np.percentile(stats, 100 - alpha)
+
+    return center, lo, hi
+
+
+def perform_wilcoxon_test(per_sample_results: dict, metric: str = "AUC",
+                          adjust_for_multiple_tests: bool = True, alpha: float = 0.05) -> pd.DataFrame:
+    """
+    Performs the paired Wilcoxon signed-rank test on aligned per-sample metrics.
+    Optionally computes bootstrap confidence intervals for paired deltas.
+
+    per_sample_results:
+        dict[model_name] -> list of ((shard_idx, sample_idx), auc)
     """
     model_pairs = list(combinations(per_sample_results.keys(), 2))
     if not model_pairs:
         raise ValueError("No model pairs found.")
 
-    adjusted_alpha = (
-        alpha / len(model_pairs) if adjust_for_multiple_tests else alpha
-    )
+    corrected_alpha = alpha / len(model_pairs) if adjust_for_multiple_tests else alpha
 
-    results = []
-
+    rows = []
     for model_a, model_b in model_pairs:
-        if metric != "AUC":
-            raise NotImplementedError(f"Metric {metric} not supported.")
 
-        scores_a, scores_b = get_aligned_aucs(
-            per_sample_results[model_a],
-            per_sample_results[model_b],
-        )
+        dict_a = dict(per_sample_results[model_a])
+        dict_b = dict(per_sample_results[model_b])
 
-        if len(scores_a) < 5:
+        common_ids = sorted(set(dict_a.keys()) & set(dict_b.keys()))
+
+        if len(common_ids) == 0:
+            rows.append({
+                "model_a": model_a,
+                "model_b": model_b,
+                "n_shared": 0,
+                "mean_a": np.nan,
+                "mean_b": np.nan,
+                "mean_delta": np.nan,
+                "p_value": np.nan,
+                "significant": False,
+            })
+            continue
+
+        scores_a = np.array([dict_a[i] for i in common_ids], dtype=float)
+        scores_b = np.array([dict_b[i] for i in common_ids], dtype=float)
+
+        mask = ~(np.isnan(scores_a) | np.isnan(scores_b))
+        scores_a = scores_a[mask]
+        scores_b = scores_b[mask]
+
+        delta = scores_a - scores_b
+        n = len(delta)
+
+        if n < 5:
             p_val = np.nan
         else:
-            try:
-                stat, p_val = wilcoxon(
-                    scores_a,
-                    scores_b,
-                    zero_method="pratt",
-                    alternative="two-sided",
-                )
-            except ValueError:
-                p_val = np.nan
+            nonzero_mask = delta != 0
+            scores_a_nz = scores_a[nonzero_mask]
+            scores_b_nz = scores_b[nonzero_mask]
 
-        results.append({
+            if len(scores_a_nz) < 5:
+                p_val = 1.0
+            else:
+                try:
+                    _, p_val = wilcoxon(
+                        scores_a_nz,
+                        scores_b_nz,
+                        alternative="two-sided",
+                        zero_method="wilcox"
+                    )
+                except Exception:
+                    p_val = np.nan
+
+        rows.append({
             "model_a": model_a,
             "model_b": model_b,
-            "n_shared_samples": len(scores_a),
-            "mean_a ± std": f"{np.mean(scores_a):.4f} ± {np.std(scores_a, ddof=1):.4f}",
-            "mean_b ± std": f"{np.mean(scores_b):.4f} ± {np.std(scores_b, ddof=1):.4f}",
+            "mean_a": scores_a.mean() if n > 0 else np.nan,
+            "mean_b": scores_b.mean() if n > 0 else np.nan,
+            "std_a": scores_a.std(ddof=1) if n > 1 else np.nan,
+            "std_b": scores_b.std(ddof=1) if n > 1 else np.nan,
+            "mean_delta": delta.mean() if n > 0 else np.nan,
+            "median_delta": np.median(delta) if n > 0 else np.nan,
             "raw_p_value": p_val,
-            "adjusted_alpha": adjusted_alpha,
-            "significant_after_correction": (
-                p_val < adjusted_alpha if not np.isnan(p_val) else False
+            "adjusted_alpha": corrected_alpha,
+            "significant": (
+                p_val < corrected_alpha if not np.isnan(p_val) else False
             ),
         })
 
-    return pd.DataFrame(results)
+    return pd.DataFrame(rows)
 
+
+def load_full_dataset(base_path: Path, split: str):
+    """
+    Loads a single dataset file into memory.
+
+    Args:
+        base_path (Path): Path to the folder containing the pytorch .pt shards in the format `<split>_shard*.pt`.
+        split (str): Name of the split to load.
+
+    Returns:
+        list: List of data samples (pairs of time series and ground truth lagged causal graph).
+    """
+    file_path = base_path / f"{split}.pt"
+
+    if not file_path.exists():
+        raise FileNotFoundError(f"Dataset file not found: {file_path}")
+
+    data = torch.load(file_path, weights_only=False)
+
+    if not isinstance(data, list):
+        raise ValueError(f"{file_path} does not contain a list of samples")
+
+    print(f"Loaded dataset file: {file_path} ({len(data)} samples)")
+
+    return data  # returns list of (X,Y)
 
 
 def load_sharded_dataset(base_path: Path, split: str): 
@@ -263,55 +392,195 @@ def load_sharded_dataset(base_path: Path, split: str):
 
     shard_files = sorted(split_path.glob(f"{split}_merged_shard*.pt"))
     if not shard_files:
-        print("Trying naming convention")
         shard_files = sorted(split_path.glob(f"{split}_shard*.pt"))
+
     if not shard_files:
-        print(f"No shards found, trying single file {split}.pt")
         single_file = split_path / f"{split}.pt"
         if single_file.exists():
-            yield torch.load(single_file)
-            return
+            return [torch.load(single_file, weights_only=False)]
         else:
             raise FileNotFoundError(f"No dataset found for split {split}")
 
-    print(f"- Found {len(shard_files)} shard(s) for split '{split}'")
+    print(f"- Found {len(shard_files)} shard(s)")
 
-    for shard_idx, shard_path in enumerate(shard_files):
+    all_shards = []
+
+    for shard_path in shard_files:
         shard_data = torch.load(shard_path, weights_only=False)
-        print(f"  ├── Loaded {shard_path.name:35s} ({len(shard_data)} datasamples)")
-        yield shard_data
 
-    print(f"Shards have been processed.\n")
+        if not isinstance(shard_data, list):
+            raise ValueError(f"{shard_path} is not a list of samples")
+
+        print(f"├── Loaded {shard_path.name} ({len(shard_data)} samples)")
+        all_shards.append(shard_data)
+
+    return all_shards
 
 
-def load_full_dataset(base_path: Path, split: str) -> list:
+def load_fmri_datasets(fmri_path: Path, verbose: bool = False):
+    timeseries_files = sorted([f for f in os.listdir(fmri_path) if 'timeseries' in f])
+    ground_truth_files = sorted([f for f in os.listdir(fmri_path) if 'gt_processed' in f])
+
+    dataset = [[]]  # single shard
+
+    for ts_file in timeseries_files:
+        ts_number = extract_number(ts_file, r'timeseries(\d+)\.csv')
+
+        for gt_file in ground_truth_files:
+            gt_number = extract_number(gt_file, r'sim(\d+)_gt_processed\.csv')
+
+            if ts_number == gt_number:
+
+                X_raw = pd.read_csv(fmri_path / ts_file)
+                Y_raw = pd.read_csv(fmri_path / gt_file, names=['effect','cause','delay'])
+
+                X = torch.tensor(X_raw.values, dtype=torch.float32)
+                Y = from_fmri_to_lagged_adj(X_raw, Y_raw)
+
+                if Y.sum() <= 0 or Y.sum() == np.prod(Y.shape):
+                    continue
+
+                dataset[0].append((X, Y))
+
+    if verbose:
+        print(f"Loaded {len(dataset[0])} fMRI samples")
+
+    return dataset
+
+
+def load_cdml_datasets(cdml_path: Path, verbose: bool = False, MAX_VAR: int = 12, MAX_LAG: int = 3):
+
+    filenames = sorted(f.split("_data.csv")[0] for f in os.listdir(cdml_path) if f.endswith("_data.csv"))
+
+    dataset = [[]]  # single shard
+    for fname in filenames:
+
+        X_raw = pd.read_csv(cdml_path / f"{fname}_data.csv")
+        Y_raw = pd.read_csv(cdml_path / f"{fname}_target.csv", index_col="Unnamed: 0")
+
+        X = torch.tensor(X_raw.values, dtype=torch.float32)
+        X = (X - X.min()) / (X.max() - X.min() + 1e-8)
+
+        Y = y_from_cdml_to_lagged_adj(Y_raw)
+
+        if X.shape[1] > MAX_VAR:
+            continue
+        if Y.shape[1] > MAX_VAR or Y.shape[2] > MAX_LAG:
+            continue
+        if Y.sum() <= 0 or Y.sum() == np.prod(Y.shape):
+            continue
+
+        dataset[0].append((X, Y))
+
+    if verbose:
+        print(f"Loaded {len(dataset[0])} CDML samples")
+
+    return dataset
+
+
+def load_dataset(
+    cpd_path: Path = None,
+    split: str = "test",
+    sharded_data: bool = False,
+    fmri_data: bool = False,
+    cdml_path: Path = None,
+):
     """
-    Loads a single dataset file into memory.
-
-    Args:
-        base_path (Path): Path to the folder containing the pytorch .pt shards in the format `<split>_shard*.pt`.
-        split (str): Name of the split to load.
-
     Returns:
-        list: List of data samples (pairs of time series and ground truth lagged causal graph).
+        dataset: List[List[(X, Y)]]
+                 Outer list = shards
+                 Inner list = samples
     """
-    file_path = base_path / f"{split}.pt"
-    if not file_path.exists():
-        raise FileNotFoundError(f"Dataset file not found: {file_path}")
-    data = torch.load(file_path, weights_only=False)
-    print(f"Loaded dataset file: {file_path} ({len(data)} samples)")
 
-    return data
+    if cdml_path is not None:
+        return load_cdml_datasets(Path(cdml_path))
+
+    if fmri_data:
+        return load_fmri_datasets(Path(cpd_path))
+
+    if sharded_data:
+        return load_sharded_dataset(Path(cpd_path), split)
+
+    return [load_full_dataset(Path(cpd_path), split)]
 
 
-def run_evaluation_experiments(models: dict, cpd_path: Path, out_dir: Path,
-                               split: str="test",
-                               sharded_data: bool=False,
-                               fmri_data: bool=False,
-                               kuramoto_data: bool=False,
-                               dataset_label: str=None,
-                               N_SAMPLING: int=10, N_RUNS: int=5,
-                               MAX_VAR: int=12, MAX_LAG: int=3) -> None:
+def plot_running_times(
+    running_times_dict,
+    save_dir,
+    dataset_label,
+    output_format="pdf"  # use pdf for paper
+):
+    fig, ax = plt.subplots(figsize=(7.5, 5))
+
+    labels = list(running_times_dict.keys())
+    values = list(running_times_dict.values())
+
+    plt.rcParams.update({
+        "font.size": 11,
+        "axes.titlesize": 14,
+        "axes.labelsize": 12,
+        "xtick.labelsize": 10,
+        "ytick.labelsize": 10,
+    })
+
+
+    # Create boxplot with controlled styling
+    bp = ax.boxplot(
+        values,
+        patch_artist=True,
+        widths=0.6,
+        showfliers=True,
+        medianprops=dict(color="black", linewidth=1.8),
+        whiskerprops=dict(linewidth=1.5),
+        capprops=dict(linewidth=1.5),
+        boxprops=dict(linewidth=1.5),
+        flierprops=dict(marker='o', markersize=4, alpha=0.5)
+    )
+    SOFT_COLORS = [
+        "#DB81D7", "#1F78B4", "#B2DF8A", "#33A02C", "#FB9A99", "#E31A1C",
+        "#FDBF6F", "#FF7F00", "#CAB2D6", "#6A3D9A", "#FFFF99", "#B15928"
+    ]
+
+    # Apply soft colors
+    for patch, color in zip(bp["boxes"], SOFT_COLORS):
+        patch.set_facecolor(color)
+        patch.set_alpha(0.7)
+
+    # Subtle grid like your other plots
+    ax.grid(axis='y', linestyle='--', alpha=0.3)
+    ax.set_axisbelow(True)
+
+    # Clean spines (paper style)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+
+    # Labels and title
+    ax.set_xticklabels(labels, rotation=30, ha="right")
+    ax.set_ylabel("Avg running time per dataset (sec)", fontsize=12)
+    ax.set_title("Distribution of Running Times", fontsize=14)
+
+    plt.tight_layout()
+
+    output_path = save_dir / f"running_times_{dataset_label}.{output_format}"
+    plt.savefig(output_path, bbox_inches="tight")
+    plt.close()
+
+    print(f"Figure saved to: {output_path}")
+
+
+def run_evaluation_experiments(models: dict,
+                               cpd_path: Path = None,
+                               out_dir: Path = None,
+                               split: str = "test",
+                               sharded_data: bool = False,
+                               fmri_data: bool = False,
+                               kuramoto_data: bool = False,
+                               cdml_path: Path = None,
+                               dataset_label: str = None,
+                               N_SAMPLING: int = 10,
+                               N_RUNS: int = 5,
+                               MAX_VAR: int = 12,
+                               MAX_LAG: int = 3) -> None:
     """
     Run evaluation experiments for multiple causal models on a given dataset.
 
@@ -334,7 +603,11 @@ def run_evaluation_experiments(models: dict, cpd_path: Path, out_dir: Path,
     """
 
     """ Path """
-    cpd_path = Path(cpd_path)
+    if cdml_path is not None:
+        data_path = Path(cdml_path)
+    else:
+        data_path = Path(cpd_path)
+
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -348,44 +621,18 @@ def run_evaluation_experiments(models: dict, cpd_path: Path, out_dir: Path,
     per_sample_results = defaultdict(list)
     running_times_dict = defaultdict(list)
 
-    print(f'Dataset: {Path(cpd_path).parent.stem}')
+    print(f'Dataset: {data_path.parent.stem}')
 
     """ Load data depending on mode """
-    if fmri_data:
+    if cdml_path is not None:
+        cdml_path = Path(cdml_path)
+        dataset_iterator = load_cdml_datasets(cdml_path, verbose=True)
+
+    elif fmri_data:
         fmri_path = Path(cpd_path)
-
-        print(f"Using fMRI dataset from: {fmri_path}")
-        timeseries_files = [f for f in os.listdir(fmri_path) if 'timeseries' in f]
-        ground_truth_files = [f for f in os.listdir(fmri_path) if 'gt_processed' in f]
-
-        matched_files = []
-        for ts_file in timeseries_files:
-            ts_number = extract_number(ts_file, r'timeseries(\d+)\.csv')
-            for gt_file in ground_truth_files:
-                gt_number = extract_number(gt_file, r'sim(\d+)_gt_processed\.csv')
-                if ts_number == gt_number:
-                    matched_files.append((ts_file, gt_file))
-        print(f"Total number of fMRI data pairs: {len(matched_files)}")
-
-        dataset_iterator = []
-        for ts_file, gt_file in matched_files:
-            test_fmri = pd.read_csv(f"{fmri_path}/{ts_file}")
-            label_fmri = pd.read_csv(f"{fmri_path}/{gt_file}", names=['effect', 'cause', 'delay'])
-
-            X_fmri = torch.tensor(test_fmri.values, device='cpu', dtype=torch.float32)
-            Y_fmri = from_fmri_to_lagged_adj(test_fmri=test_fmri, label_fmri=label_fmri)
-
-            # Skip degenerate samples
-            if Y_fmri.sum() <= 0 or Y_fmri.sum() == np.prod(Y_fmri.shape):
-                continue
-            
-            dataset_iterator.append([(X_fmri, Y_fmri)]) # list of datasamples
+        dataset_iterator = load_fmri_datasets(fmri_path, verbose=True)
 
     else:
-        #if cpd_path.suffix in [".p", ".pkl", ".pickle"]:
-        #    print(f"--PICKLE mode-- ({cpd_path.name})")
-        #    with open(cpd_path, "rb") as f:
-        #        data = pickle.load(f)
         if sharded_data:
             print("--SHARDED mode--")
             dataset_iterator = load_sharded_dataset(cpd_path, split)
@@ -398,84 +645,44 @@ def run_evaluation_experiments(models: dict, cpd_path: Path, out_dir: Path,
 
         print(f"\n___{model_name}___")
 
-        MAX_VAR = MAX_VAR 
-        MAX_LAG = MAX_LAG
-        if "CP_trf" in model_name:
-            MAX_VAR = 5
+        MAX_VAR_ = MAX_VAR
+        MAX_LAG_ = MAX_LAG
+        if model_name == "CP_trf":
+            MAX_VAR_ = 5
         elif "LCM" in model_name:
-            MAX_VAR, MAX_LAG = 12, 3
-
-        if fmri_data:
-            if ("PCMCI" in model_name) or ("DYNOTEARS" in model_name) or ("VARLINGAM" in model_name):
-                if "fMRI_5" in str(cpd_path):
-                    MAX_VAR = 5
-                    MAX_LAG = label_fmri['delay'].max()
-                else:
-                    MAX_VAR = 10
-                    MAX_LAG = label_fmri['delay'].max()
-            elif "CP_trf" in model_name:
-                MAX_VAR = 5
-                MAX_LAG = 3
-            else:
-                MAX_VAR = MAX_VAR 
-                MAX_LAG = MAX_LAG 
+            MAX_VAR_, MAX_LAG_ = 12, 3
 
         if kuramoto_data:
             if ("PCMCI" in model_name) or ("DYNOTEARS" in model_name) or ("VARLINGAM" in model_name):
                 if "kuramoto_5" in str(cpd_path):
-                    MAX_VAR = 5
-                    MAX_LAG = 1 
+                    MAX_VAR_ = 5
+                    MAX_LAG_ = 1 
                 else:
-                    MAX_VAR = 10
-                    MAX_LAG = 1 
-            elif "CP_trf" in model_name:
-                MAX_VAR = 5
-                MAX_LAG = 3
-            else:
-                MAX_VAR = MAX_VAR 
-                MAX_LAG = MAX_LAG
-        
-        print(f"VAR: {MAX_VAR} | MAX LAG: {MAX_LAG}") if "LCM" in model_name else print(f"MAX LAG: {MAX_LAG}") 
+                    MAX_VAR_ = 10
+                    MAX_LAG_ = 1 
+
+        print(f"VAR: {MAX_VAR_} | MAX LAG: {MAX_LAG_}") if "LCM" or "CP_trf" in model_name else print(f"MAX LAG: {MAX_LAG_}") 
 
         # store metrics across multiple runs
         run_metrics = {"AUC": [], "TPR": [], "FPR": [], "TNR": [], "FNR": [], "Precision": [], "Recall": [], "F1": []}
 
-        # PCMCI is deterministic, multiple runs are not necessary, while DYNOTEARS and VARLINGAM are effectively deterministic (se < 1e-4)
-        if model_name == "PCMCI" or model_name == "DYNOTEARS" or model_name == "VARLINGAM":
+        # PCMCI is deterministic, multiple runs are not necessary
+        if model_name in ["PCMCI", "DYNOTEARS", "VARLINGAM"]:
             N_RUNS = 1
 
         for run_id in range(N_RUNS):
-        #    print(f"\n--- Run {run_id+1}/{N_RUNS} ---")
             seed = 42 + run_id
             torch.manual_seed(seed)
             np.random.seed(seed)
             random.seed(seed)
             print(f"\n |--- Run {run_id+1}/{N_RUNS} (seed={seed}) ---")
 
-            # Re-initializing the dataset iterator each run
-            if fmri_data:
-                dataset_iterator = [] 
-                for ts_file, gt_file in matched_files:
-                    test_fmri = pd.read_csv(f"{fmri_path}/{ts_file}")
-                    label_fmri = pd.read_csv(f"{fmri_path}/{gt_file}", names=['effect', 'cause', 'delay'])
-                    X_fmri = torch.tensor(test_fmri.values, device='cpu', dtype=torch.float32)
-                    Y_fmri = from_fmri_to_lagged_adj(test_fmri=test_fmri, label_fmri=label_fmri)
-                    if Y_fmri.sum() <= 0 or Y_fmri.sum() == np.prod(Y_fmri.shape):
-                        continue
-                    dataset_iterator.append([(X_fmri, Y_fmri)])
-            else:
-                if sharded_data:
-                    dataset_iterator = load_sharded_dataset(cpd_path, split)
-                else:
-                    dataset_iterator = [load_full_dataset(cpd_path, split)]
-
             tpr_list, fpr_list, tnr_list, fnr_list, auc_list = [], [], [], [], []
             precision_list, recall_list, f1_list = [], [], []
 
             for shard_idx, data in enumerate(dataset_iterator):
-                #print(f"\n Processing shard {shard_idx} ({len(data)} samples)")
                 for idx in tqdm(range(len(data[:2000])), desc=f'Shard {shard_idx}'):
-                    
+
                     try:
                         X_cpd = data[idx][0]
                         Y_cpd = data[idx][-1]
@@ -517,7 +724,8 @@ def run_evaluation_experiments(models: dict, cpd_path: Path, out_dir: Path,
                             assert pred_bin.shape == Y_cpd.shape, \
                                 f"Shape mismatch: pred={pred_bin.shape}, Y={Y_cpd.shape}"
 
-                            tpr, fpr, tnr, fnr, auc = custom_binary_metrics(binary=pred_bin, A=Y_cpd, verbose=False)
+                            #tpr, fpr, tnr, fnr, auc = custom_binary_metrics(binary=pred_bin, A=Y_cpd, verbose=False)
+                            tpr, fpr, tnr, fnr, auc = custom_binary_metrics(pred=pred, A=Y_cpd, verbose=False)
 
                             precision = tpr / (tpr + fpr) if tpr + fpr != 0 else 0
                             recall = tpr / (tpr + fnr) if tpr + fnr != 0 else 0
@@ -549,7 +757,8 @@ def run_evaluation_experiments(models: dict, cpd_path: Path, out_dir: Path,
                             binary_adj_fixed = (score_adj >= 0.5).astype(int)
                             Y_cpd = (Y_cpd >= 0.05).float()
 
-                            tpr, fpr, tnr, fnr, auc = custom_binary_metrics(torch.tensor(binary_adj_fixed), Y_cpd, verbose=False)
+                            #tpr, fpr, tnr, fnr, auc = custom_binary_metrics(torch.tensor(binary_adj_fixed), Y_cpd, verbose=False)
+                            tpr, fpr, tnr, fnr, auc = custom_binary_metrics(torch.tensor(score_adj), Y_cpd, verbose=False)
 
                             precision = tpr / (tpr + fpr) if tpr + fpr != 0 else 0
                             recall = tpr / (tpr + fnr) if tpr + fnr != 0 else 0
@@ -564,24 +773,25 @@ def run_evaluation_experiments(models: dict, cpd_path: Path, out_dir: Path,
                             X_cpd = (X_cpd - X_cpd.min()) / (X_cpd.max() - X_cpd.min())
 
                             # Check dimensions to make sure they do not exceed the model's MAX_LAG & MAX_VAR
-                            assert X_cpd.shape[1]<=MAX_VAR, \
-                                f"ValueError: input time-series have {X_cpd.shape[1]} variables, while the current model supports at most {MAX_VAR}"
-                            assert Y_cpd.shape[1]<=MAX_VAR, \
-                                f"ValueError: input adjacency matrix has {Y_cpd.shape[1]} nodes, while the current model supports at most {MAX_VAR}"
-                            assert Y_cpd.shape[2]<=MAX_LAG, \
-                                f"ValueError: input adjacency matrix has {Y_cpd.shape[2]}, while the current model supports at most {MAX_LAG}"
+                            assert X_cpd.shape[1]<=MAX_VAR_, \
+                                f"ValueError: input time-series have {X_cpd.shape[1]} variables, while the current model supports at most {MAX_VAR_}"
+                            assert Y_cpd.shape[1]<=MAX_VAR_, \
+                                f"ValueError: input adjacency matrix has {Y_cpd.shape[1]} nodes, while the current model supports at most {MAX_VAR_}"
+                            assert Y_cpd.shape[2]<=MAX_LAG_, \
+                                f"ValueError: input adjacency matrix has {Y_cpd.shape[2]}, while the current model supports at most {MAX_LAG_}"
 
                             # Padding
-                            VAR_DIF = MAX_VAR - X_cpd.shape[1]
-                            LAG_DIF = MAX_LAG -Y_cpd.shape[2]
-                            if X_cpd.shape[1] != MAX_VAR: # if the number of variables is less than the maximum
+                            VAR_DIF = MAX_VAR_ - X_cpd.shape[1]
+                            LAG_DIF = MAX_LAG_ -Y_cpd.shape[2]
+                            
+                            if VAR_DIF > 0: # if the number of variables is less than the maximum
                                 X_cpd = torch.concat(
-                                    [X_cpd, torch.normal(0, 0.01, (X_cpd.shape[0], VAR_DIF))], axis=1 # pad with noise
+                                    [X_cpd,torch.normal(0, 0.01, (X_cpd.shape[0], VAR_DIF))], axis=1 # pad with noise
                                 )
                                 Y_cpd = torch.nn.functional.pad(
                                     Y_cpd, (0, 0, 0, VAR_DIF, 0, VAR_DIF), mode="constant", value=0.0 # pad the adjacency matrix with zeros
                                 )
-                            if Y_cpd.shape[2] != MAX_LAG: # if the number of lags is less than the maximum
+                            if LAG_DIF > 0: # if the number of lags is less than the maximum
                                 Y_cpd = torch.nn.functional.pad(
                                     Y_cpd, (LAG_DIF, 0, 0, 0, 0, 0), mode="constant", value=0.0 # pad the adjacency matrix with zeros
                                 )
@@ -630,7 +840,7 @@ def run_evaluation_experiments(models: dict, cpd_path: Path, out_dir: Path,
                                 continue
 
                             """ Binary Metrics """
-                            tpr, fpr, tnr, fnr, auc = custom_binary_metrics(binary=pred[0], A=Y_cpd, verbose=False)
+                            tpr, fpr, tnr, fnr, auc = custom_binary_metrics(pred=pred[0], A=Y_cpd, verbose=False)
 
                             precision = tpr / (tpr + fpr) if tpr + fpr != 0 else 0
                             recall = tpr / (tpr + fnr) if tpr + fnr != 0 else 0
@@ -645,9 +855,9 @@ def run_evaluation_experiments(models: dict, cpd_path: Path, out_dir: Path,
                         recall_list.append(float(recall))
                         f1_list.append(float(f1))
 
-                        #per_sample_results[model_name].append((idx, auc))
+                        #per_sample_results[model_name].append((shard_idx, auc))
                         sample_id = (shard_idx, idx)
-                        per_sample_results[model_name].append((sample_id, auc))
+                        per_sample_results[model_name].append((sample_id, float(auc)))
 
                         running_times_dict[model_name].append(round((tac-tic) / N_SAMPLING, 3))
                     
@@ -667,7 +877,8 @@ def run_evaluation_experiments(models: dict, cpd_path: Path, out_dir: Path,
             std = flat.std()
             return mu, std
 
-        means_ses = {k: mean_std_allruns(v) for k, v in run_metrics.items()} # NOTE: Standard errors are computed across all datasets and seeds, while in the thesis across seeds only
+        # NOTE: Standard errors are computed across all datasets and seeds, while in the thesis across each seed only
+        means_ses = {k: mean_std_allruns(v) for k, v in run_metrics.items()}
 
         results_df.loc[len(results_df), :] = [
             model_name,
@@ -684,297 +895,50 @@ def run_evaluation_experiments(models: dict, cpd_path: Path, out_dir: Path,
     display(results_df)
 
     if dataset_label is None:
-        dataset_label = cpd_path.stem
+        dataset_label = data_path.stem
     save_dir = out_dir / dataset_label
     save_dir.mkdir(parents=True, exist_ok=True)
 
     results_df.to_csv(save_dir / f"results_metrics_{dataset_label}.csv", index=False)
-    
-    #model_pairs = list(combinations(per_sample_results.keys(), 2))
-    #if len(model_pairs) == 0:
-    #    raise ValueError("No model pairs found.")
+    print(f"\nMetrics saved to: {save_dir}")
 
-    #for model_a, model_b in model_pairs:
-    #    aucs_a, aucs_b = get_aligned_aucs(per_sample_results[model_a], per_sample_results[model_b])
+    model_pairs = list(combinations(per_sample_results.keys(), 2))
+    if len(model_pairs) > 0:
+        pairwise_df = perform_wilcoxon_test(per_sample_results)
+    else:
+        raise ValueError("No model pairs found.") 
 
-    aggregated_results = aggregate_across_runs(per_sample_results)
-    pairwise_df = perform_wilcoxon_test(aggregated_results) 
+    pairwise_df = perform_wilcoxon_test(per_sample_results) 
 
     display(pairwise_df)
     pairwise_df.to_csv(save_dir / f"pairwise_significance_{dataset_label}.csv", index=False)
 
-    ###### Figure ######
-    plt.figure(figsize=(10, 6))
-    plt.boxplot(running_times_dict.values(), labels=running_times_dict.keys(), showfliers=True)
-    plt.title("Distribution of Running Times")
-    plt.ylabel("Avg running time per dataset (in sec)")
-    plt.grid(axis='y', alpha=0.3)
-    plt.tight_layout()
-    plt.savefig(save_dir / f"running_times_{dataset_label}.png")
-    plt.show()
-    plt.close()
-    
-    print(f"Figure saved to: {out_dir / f'running_times_{dataset_label}.png'}")
-
-    ###############
+    plot_running_times(
+        running_times_dict,
+        save_dir,
+        dataset_label,
+        output_format="pdf"
+    )
+    print(f"Figure saved to: {out_dir} / running_times_{dataset_label}.pdf")
 
     running_times_df = pd.DataFrame({k: pd.Series(v) for k, v in running_times_dict.items()})
     running_times_summary = running_times_df.aggregate(['mean', 'median', 'std', 'min', 'max']).T
     running_times_summary.index = [
         f"{label} (running time in sec)" for label in running_times_summary.index
     ]
-    display(running_times_summary)
     running_times_summary.to_csv(save_dir / f"running_times_summary_{dataset_label}.csv", index=False)
 
     # save per-sample results dict to .npy
-    np.save(save_dir / f"per_sample_results_{dataset_label}.npy", per_sample_results)
+    #np.save(save_dir / f"per_sample_results_{dataset_label}.npy", per_sample_results)
 
-    critical_diff_df = pd.DataFrame(columns=["model", "dataset", "accuracy"])
-
-    for model, auc_list in results_dict.items():
-        for auc in auc_list:
-                critical_diff_df.loc[len(critical_diff_df)] = [model, dataset_label, auc]
-
-    critical_diff_df.to_csv(save_dir / f"critical_diff_df_{dataset_label}.csv", index=False)
-
-    #display(critical_diff_df)
+    # if save_critical_diff:
+        #critical_diff_df = pd.DataFrame(columns=["model", "dataset", "accuracy"])
+        #for model, auc_list in results_dict.items():
+        #    for auc in auc_list:
+        #            critical_diff_df.loc[len(critical_diff_df)] = [model, 'CDML', auc]
+        #critical_diff_df.to_csv(out_dir / f"critical_diff_df_CDML.csv", index=False)
 
     print(f"\n Results saved to {out_dir}")
-
-
-
-def run_cdml_evaluation_experiments(
-    models: dict,
-    cdml_path: Path,
-    out_dir: Path,
-    MAX_VAR: int = 12,
-    MAX_LAG: int = 3,
-    N_RUNS: int = 5,
-    N_SAMPLING: int = 10,
-):
-    """
-    Evaluation for CDML data as in run_evaluation_experiments method.
-    """
-
-    cdml_path = Path(cdml_path)
-    out_dir = Path(out_dir)
-    out_dir.mkdir(parents=True, exist_ok=True)
-
-    results_df = pd.DataFrame(columns=[
-        "model", "AUC_mean", "AUC_se", "TPR_mean", "TPR_se", "FPR_mean", "FPR_se",
-        "TNR_mean", "TNR_se", "FNR_mean", "FNR_se", "Precision_mean", "Precision_se",
-        "Recall_mean", "Recall_se", "F1_mean", "F1_se"
-    ])
-
-    results_dict = {}
-    per_sample_results = defaultdict(list)
-    running_times_dict = defaultdict(list)
-
-    print(f"Dataset: {Path(cdml_path).parent.stem}")
-
-    filenames = [
-        f.split("_data.csv")[0]
-        for f in os.listdir(cdml_path)
-        if f.endswith("_data.csv")
-    ]
-    print(f"Found {len(filenames)} CDML samples.")
-
-    for model_name, model in zip(models.keys(), models.values()):
-
-        print(f"\n___ {model_name} ___")
-
-        max_var = MAX_VAR
-        max_lag = MAX_LAG
-
-        # Your original logic
-        if model_name == "provided-trf-5V":
-            max_var = 5
-        elif ("deep" in model_name and ("_10_3" in model_name or "_12_3" in model_name)) \
-             or ("lcm" in model_name and "_12_3" in model_name):
-            max_var = 12
-            max_lag = 3
-
-        print(f"VAR: {max_var} | LAG: {max_lag}")
-
-        # Metrics to aggregate over runs
-        run_metrics = {
-            "AUC": [], "TPR": [], "FPR": [], "TNR": [], "FNR": [],
-            "Precision": [], "Recall": [], "F1": []
-        }
-
-        # Deterministic models → 1 run
-        if model_name in ["PCMCI", "DYNOTEARS", "VARLINGAM"]:
-            N_RUNS = 1
-
-        for run_id in range(N_RUNS):
-
-            seed = 42 + run_id
-            torch.manual_seed(seed)
-            np.random.seed(seed)
-            random.seed(seed)
-
-            print(f"\n |--- Run {run_id+1}/{N_RUNS} (seed={seed}) ---")
-
-            tpr_list, fpr_list, tnr_list, fnr_list = [], [], [], []
-            auc_list = []
-            precision_list, recall_list, f1_list = [], [], []
-
-            for filename in tqdm(filenames):
-
-                # Load CDML data
-                X_raw = pd.read_csv(cdml_path / f"{filename}_data.csv")
-                Y_raw = pd.read_csv(cdml_path / f"{filename}_target.csv", index_col="Unnamed: 0")
-
-                X = torch.tensor(X_raw.values, dtype=torch.float32)
-                X = (X - X.min()) / (X.max() - X.min())  # normalize
-                Y = y_from_cdml_to_lagged_adj(Y_raw)
-
-                # Skip incompatible samples
-                if X.shape[1] > max_var:
-                    continue
-                if Y.shape[1] > max_var or Y.shape[2] > max_lag:
-                    continue
-
-                # Padding
-                VAR_DIF = max_var - X.shape[1]
-                LAG_DIF = max_lag - Y.shape[2]
-
-                if VAR_DIF > 0:
-                    X = torch.cat([X, torch.normal(0, 0.01, (X.shape[0], VAR_DIF))], dim=1)
-                    Y = torch.nn.functional.pad(Y, (0, 0, 0, VAR_DIF, 0, VAR_DIF))
-                if LAG_DIF > 0:
-                    Y = torch.nn.functional.pad(Y, (LAG_DIF, 0, 0, 0, 0, 0))
-
-                tic = time.time()
-
-                if "LCM" in model_name:
-                    M = model.model.to("cpu").eval()
-                    if X.shape[0] > 500:
-                        batches = []
-                        for i in range(X.shape[0] // 500):
-                            batches.append(X[500 * i: 500 * (i + 1)])
-                        if 500 * (X.shape[0] // 500) < X.shape[0]:
-                            batches.append(X[500 * (X.shape[0] // 500):])
-                        preds = []
-                        for bs in batches:
-                            bs = bs.unsqueeze(0)
-                            with torch.no_grad():
-                                preds.append(torch.sigmoid(M((bs, lagged_batch_crosscorrelation(bs, 3)))))
-                        pred = torch.cat(preds, dim=0).mean(0).unsqueeze(0)
-                    else:
-                        with torch.no_grad():
-                            pred = torch.sigmoid(
-                                M((X.unsqueeze(0), lagged_batch_crosscorrelation(X.unsqueeze(0), 3)))
-                            )
-
-                elif model_name == "PCMCI":
-                    pred_np = tensor_to_pcmci_res_modified(X, c_test="ParCorr", max_tau=Y.shape[-1])
-                    pred = torch.from_numpy(pred_np.copy())
-
-                elif model_name == "DYNOTEARS":
-                    pred_np = run_dynotears_with_bootstrap(
-                        pd.DataFrame(X.numpy()),
-                        n_lags=max_lag,
-                        n_bootstrap=N_SAMPLING
-                    )
-                    pred = torch.from_numpy(pred_np)
-
-                elif model_name == "VARLINGAM":
-                    pred_np = run_varlingam_with_bootstrap(
-                        sample=X,
-                        max_lag=max_lag,
-                        n_sampling=N_SAMPLING,
-                        min_causal_effect=0.05,
-                    )
-                    pred = torch.from_numpy(pred_np)
-
-                else:
-                    raise NotImplementedError(f"Unknown model type: {model_name}")
-
-                tac = time.time()
-                running_times_dict[model_name].append(round((tac - tic) / N_SAMPLING, 3))
-
-                if Y.sum() <= 0 or Y.sum() == np.prod(Y.shape):
-                    continue
-                if pred.sum() <= 0 or pred.sum() == np.prod(pred.shape):
-                    continue
-
-                Y[Y < 0.05] = 0
-                Y[Y >= 0.05] = 1
-
-                tpr, fpr, tnr, fnr, auc = custom_binary_metrics(pred, Y, verbose=False)
-
-                precision = tpr / (tpr + fpr) if tpr + fpr != 0 else 0
-                recall = tpr / (tpr + fnr) if tpr + fnr != 0 else 0
-                f1 = 2 * (precision * recall) / (precision + recall) if precision + recall != 0 else 0
-
-                tpr_list.append(float(tpr))
-                fpr_list.append(float(fpr))
-                tnr_list.append(float(tnr))
-                fnr_list.append(float(fnr))
-                auc_list.append(float(auc))
-                precision_list.append(precision)
-                recall_list.append(recall)
-                f1_list.append(f1)
-
-                per_sample_results[model_name].append((filename, auc))
-
-            results_dict[model_name] = [token for token in auc_list]
-            for k, v in zip(["AUC","TPR","FPR","TNR","FNR","Precision","Recall","F1"],
-                            [auc_list,tpr_list,fpr_list,tnr_list,fnr_list,precision_list,recall_list,f1_list]):
-                run_metrics[k].append(v)   # full list, no mean yet
-
-        def mean_std_allruns(x):
-            # Flatten all scores across seeds
-            flat = np.array([s for run in x for s in run], dtype=float)
-            mu = flat.mean()
-            std = flat.std()
-            return mu, std
-
-        means_ses = {k: mean_std_allruns(v) for k, v in run_metrics.items()} # NOTE: Standard errors are computed across all datasets and seeds, while in the thesis across seeds only
-
-        results_df.loc[len(results_df), :] = [
-            model_name,
-            means_ses["AUC"][0], means_ses["AUC"][1],
-            means_ses["TPR"][0], means_ses["TPR"][1],
-            means_ses["FPR"][0], means_ses["FPR"][1],
-            means_ses["TNR"][0], means_ses["TNR"][1],
-            means_ses["FNR"][0], means_ses["FNR"][1],
-            means_ses["Precision"][0], means_ses["Precision"][1],
-            means_ses["Recall"][0], means_ses["Recall"][1],
-            means_ses["F1"][0], means_ses["F1"][1],
-        ]
-
-    display(results_df)
-
-    save_path = out_dir / "cdml_results_metrics.csv"
-    results_df.to_csv(save_path, index=False)
-    print(f"\nMetrics saved to: {save_path}")
-
-    model_pairs = list(combinations(per_sample_results.keys(), 2))
-    if len(model_pairs) > 0:
-        pairwise_df = perform_wilcoxon_test(per_sample_results)
-        display(pairwise_df)
-        #pairwise_df.to_csv(out_dir / "pairwise_significance_cdml.csv", index=False)
-
-    running_times_df = pd.DataFrame({k: pd.Series(v) for k, v in running_times_dict.items()})
-    running_times_summary = running_times_df.aggregate(['mean','median','std','min','max']).T
-    running_times_summary.to_csv(out_dir / "running_times_summary_cdml.csv", index=True)
-
-    print(f"Running time summary saved to: {out_dir / 'running_times_summary_cdml.csv'}")
-
-    # save per-sample results dict to .npy
-    np.save(out_dir / f"per_sample_results_cdml.npy", per_sample_results)
-
-    critical_diff_df = pd.DataFrame(columns=["model", "dataset", "accuracy"])
-
-    for model, auc_list in results_dict.items():
-        for auc in auc_list:
-                critical_diff_df.loc[len(critical_diff_df)] = [model, 'CDML', auc]
-
-    critical_diff_df.to_csv(out_dir / f"critical_diff_df_CDML.csv", index=False)
-
-
 
 
 def optimal_threshold_youden(y_true: np.ndarray, y_score: np.ndarray, bin_thresh: float=0.05) -> tuple:
