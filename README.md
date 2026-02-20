@@ -6,13 +6,11 @@
 
 <div align="center">
 
-[![CodeFactor](https://www.codefactor.io/repository/github/kougioulis/LCM-paper/badge)](https://www.codefactor.io/repository/github/kougioulis/LCM-paper)
 ![Python](https://img.shields.io/badge/Python-3.10-blue?logo=python)
 ![PyTorch](https://img.shields.io/badge/PyTorch-black?logo=pytorch)
 ![NumPy](https://img.shields.io/badge/-NumPy-013243?\&logo=NumPy)
 ![Scikit-learn](https://img.shields.io/badge/Scikit--learn-20232A?\&logoColor=61DAFB)
 ![Pandas](https://img.shields.io/badge/-Pandas-333333?style=flat\&logo=pandas)
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/kougioulis/large-causal-models/blob/main/LICENSE)
 </div>
 
 Reproducibility experiments for the paper *"Large Causal Models for Temporal Causal Discovery*.
@@ -313,20 +311,3 @@ We additionally provide the test sets for the experimental evaluations present i
 
 </details>
 ---
-
-
-## Citation
-
-If you find this work useful, please cite:
-
-```bibtex
-@misc{kougioulis2026large,
-  title        = {Large Causal Models for Temporal Causal Discovery},
-  author       = {Nikolaos Kougioulis and Nikolaos Gkorgkolis and MingXue Wang and Bora Caglayan and Dario Simionato and Andrea Tonon and Ioannis Tsamardinos},
-  year         = {2026},
-  eprint       = {XXXX.XXXXX},
-  archivePrefix= {arXiv},
-  primaryClass = {cs.ML},
-  note         = {arXiv preprint}
-}
-```
