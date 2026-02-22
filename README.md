@@ -261,7 +261,7 @@ We additionally provide the test sets for the experimental evaluations present i
 |---|---|---|
 | Synthetic_1 (S_Joint) | 3–5 variables | [📁 Google Drive](https://drive.google.com/drive/folders/1RB7umIQH2H3F-kIUWVvVJzJfgv12Sxy8) |
 | Synthetic_2 (Synth_230K) | 3–12 variables | [📁 Google Drive](https://drive.google.com/drive/folders/1iqwnrMHx8sXWJRd6iysrKg13b-PCwwJs) |
-| CDML (Lawrence et al., 2020) | 3-11 variables | [📁 Google Drive](https://drive.google.com/drive/folders/1EOIg5J3u_HAHBXP-S7Kgl_cOsG2KjYNn) |
+| CDML (Lawrence et al., 2020) | 4-11 variables | [📁 Google Drive](https://drive.google.com/drive/folders/1EOIg5J3u_HAHBXP-S7Kgl_cOsG2KjYNn) |
 
 </details>
 
