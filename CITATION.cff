@@ -1,0 +1,7 @@
+cff-version: 1.2.0
+title: Large Causal Models for Temporal Causal Discovery
+authors: Nikolaos Kougioulis, Nikolaos Gkorgkolis, MingXue Wang, Bora Caglayan, Dario Simionato, Andrea Tonon, Ioannis Tsamardinos
+year: 2026
+type: paper 
+url: https://arxiv.org/abs/2602.18662
+repository-code: https://github.com/kougioulis/LCM-paper

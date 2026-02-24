@@ -313,3 +313,19 @@ We additionally provide the test sets for the experimental evaluations present i
 
 </details>
 ---
+
+# Citation
+
+If you find this work useful, please cite:
+
+```bibtex
+@article{kougioulis2026large,
+      title={Large Causal Models for Temporal Causal Discovery}, 
+      author={Nikolaos Kougioulis and Nikolaos Gkorgkolis and MingXue Wang and Bora Caglayan and Dario Simionato and Andrea Tonon and Ioannis Tsamardinos},
+      year={2026},
+      eprint={2602.18662},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2602.18662}
+}
+```
