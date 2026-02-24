@@ -7,6 +7,7 @@
 <div align="center">
 
 [![CodeFactor](https://www.codefactor.io/repository/github/kougioulis/LCM-paper/badge)](https://www.codefactor.io/repository/github/kougioulis/LCM-paper)
+[![arXiv](https://img.shields.io/badge/arXiv-2602.18662-b31b1b.svg?style=flat)](https://arxiv.org/abs/2602.18662)
 ![Python](https://img.shields.io/badge/Python-3.10-blue?logo=python)
 ![PyTorch](https://img.shields.io/badge/PyTorch-black?logo=pytorch)
 ![NumPy](https://img.shields.io/badge/-NumPy-013243?\&logo=NumPy)
