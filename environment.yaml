@@ -1,0 +1,33 @@
+# environment.yaml for running LCMs
+# Create with: conda env create -f environment.yaml
+# Update with: conda env update -f environment.yaml --prune
+
+name: LCM
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - numpy<2
+  - pandas
+  - scikit-learn
+  - matplotlib
+  - seaborn
+  - tqdm
+  - einops
+  - networkx
+  - pytest           # test suite
+  - ruff             # linting
+  - pip
+  - ipykernel        # for running notebooks
+  - pip:
+      - --extra-index-url https://download.pytorch.org/whl/cpu
+      - setuptools==75.1.0   # releases 81+ strip-out pkg_resources, needed for lightning 2.0.8
+      - torch==2.5.0+cpu
+      - pytorch-lightning==2.0.8
+      - torchmetrics
+      - omegaconf==2.3.1
+      - tigramite
+      - dcor
+      - lingam
+      - prettytable
