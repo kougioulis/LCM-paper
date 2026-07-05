@@ -1,7 +1,6 @@
 import itertools
 import os
 import string  # for labels in the graph
-import sys
 import warnings
 from functools import wraps
 from pathlib import Path
@@ -13,8 +12,6 @@ import pandas as pd
 import torch
 import torchmetrics
 from torchmetrics.classification import BinaryAUROC
-
-sys.path.append("..")
 
 """
 Heavy dependencies are lazily imported inside functions for lightweight

@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
 
-from src.models.embeddings.positional_embeddings import *
-from src.models.embeddings.token_embedding import *
+from lcm_pytorch.models.embeddings.positional_embeddings import *
+from lcm_pytorch.models.embeddings.token_embedding import *
 
 
 class InputEmbedding(nn.Module):

@@ -5,10 +5,10 @@ import numpy as np
 import pandas as pd
 import torch
 
-from src.utils.causalnex.structure.dynotears import from_pandas_dynamic
+from lcm_pytorch.utils.causalnex.structure.dynotears import from_pandas_dynamic
 #from causalnex.structure import structure_model
 
-from src.utils.transformation_utils import (_from_full_to_lagged_adj,
+from lcm_pytorch.utils.transformation_utils import (_from_full_to_lagged_adj,
                                             group_lagged_nodes)
 
 """ _____________________________________________ DYNOTEARS _____________________________________________ """

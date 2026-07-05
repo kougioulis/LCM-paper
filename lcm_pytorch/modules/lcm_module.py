@@ -1,13 +1,10 @@
 import pytorch_lightning as pl
 import torch
 
-from src.models.full_informer.model import Informer as model
+from lcm_pytorch.models.full_informer.model import Informer as model
 
-# ================================
-# Informer Module from Stein et al.
-# ================================
 
-class InformerModule(pl.LightningModule):
+class LCMModule(pl.LightningModule):
     def __init__(
         self,
         n_vars: int = 12,

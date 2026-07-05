@@ -23,7 +23,7 @@ jobs:
           pip install "numpy<2" pandas einops matplotlib torchmetrics "pytorch-lightning==2.0.8" pytest ruff
 
       - name: Ruff lint
-        run: ruff check src/modules src/utils/utils.py tests
+        run: ruff check lcm_pytorch/modules lcm_pytorch/utils/utils.py tests
 
       - name: Run tests
         run: pytest

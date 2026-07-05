@@ -14,7 +14,6 @@ import torchmetrics
 from matplotlib.pyplot import cm
 from yaml import safe_load
 
-sys.path.append("..")
 import pickle
 from functools import wraps
 from pathlib import Path

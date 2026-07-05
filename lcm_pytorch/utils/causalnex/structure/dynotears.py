@@ -37,9 +37,9 @@ import numpy as np
 import pandas as pd
 import scipy.linalg as slin
 import scipy.optimize as sopt
-from src.utils.causalnex.structure.structure_model import \
+from lcm_pytorch.utils.causalnex.structure.structure_model import \
     StructureModel
-from src.utils.causalnex.structure.transformers import \
+from lcm_pytorch.utils.causalnex.structure.transformers import \
     DynamicDataTransformer
 
 

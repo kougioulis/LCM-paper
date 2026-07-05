@@ -2,11 +2,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from src.models.embeddings.data_embedding import *
-from src.models.embeddings.positional_embeddings import *
-from src.models.embeddings.token_embedding import *
-from src.models.full_informer.attention import *
-from src.models.full_informer.encoder import *
+from lcm_pytorch.models.embeddings.data_embedding import *
+from lcm_pytorch.models.embeddings.positional_embeddings import *
+from lcm_pytorch.models.embeddings.token_embedding import *
+from lcm_pytorch.models.full_informer.attention import *
+from lcm_pytorch.models.full_informer.encoder import *
 
 
 #  https://github.com/martinwhl/Informer-PyTorch-Lightning

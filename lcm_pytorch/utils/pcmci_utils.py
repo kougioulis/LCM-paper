@@ -1,5 +1,3 @@
-import sys
-sys.path.append(".")
 
 import numpy as np
 import pandas as pd
@@ -9,8 +7,8 @@ from tigramite import data_processing as pp
 from tigramite.independence_tests.gpdc import GPDC
 from tigramite.independence_tests.parcorr_wls import ParCorr
 from tigramite.pcmci import PCMCI
-from src.utils.transformation_utils import to_lagged_adj_ready
-from src.utils.utils import compute_roc_metrics, timing
+from lcm_pytorch.utils.transformation_utils import to_lagged_adj_ready
+from lcm_pytorch.utils.utils import compute_roc_metrics, timing
 
 
 def tensor_to_pcmci_res_modified(sample: torch.tensor, c_test: str, max_tau: int) -> np.array:

@@ -1,5 +1,4 @@
 import random
-import sys
 import re
 import os
 import time
@@ -21,16 +20,15 @@ import warnings
 
 from IPython.display import display
 
-sys.path.append("..")
-from src.utils.metrics import custom_binary_metrics
-from src.utils.pcmci_utils import tensor_to_pcmci_res_modified
-from src.utils.dynotears_utils import run_dynotears_with_bootstrap
-from src.utils.cdml_utils import y_from_cdml_to_lagged_adj
-from src.utils.transformation_utils import from_fmri_to_lagged_adj
-from src.utils.utils import check_non_stationarity, to_stationary_with_finite_differences, lagged_batch_crosscorrelation, \
+from lcm_pytorch.utils.metrics import custom_binary_metrics
+from lcm_pytorch.utils.pcmci_utils import tensor_to_pcmci_res_modified
+from lcm_pytorch.utils.dynotears_utils import run_dynotears_with_bootstrap
+from lcm_pytorch.utils.cdml_utils import y_from_cdml_to_lagged_adj
+from lcm_pytorch.utils.transformation_utils import from_fmri_to_lagged_adj
+from lcm_pytorch.utils.utils import check_non_stationarity, to_stationary_with_finite_differences, lagged_batch_crosscorrelation, \
     run_varlingam_with_bootstrap
 
-from src.utils.plotting_utils import plot_comparison_fancy
+from lcm_pytorch.utils.plotting_utils import plot_comparison_fancy
 
 def timing(f: callable) -> callable:
     """

@@ -8,7 +8,7 @@ import pandas as pd
 import seaborn as sns
 import torch
 
-from src.utils.transformation_utils import group_lagged_nodes, regular_order_pd
+from lcm_pytorch.utils.transformation_utils import group_lagged_nodes, regular_order_pd
 
 
 def plot_structure(

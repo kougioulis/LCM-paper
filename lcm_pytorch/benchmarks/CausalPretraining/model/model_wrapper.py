@@ -6,9 +6,9 @@ import torch.nn as nn
 import torch.optim as opt
 from torchmetrics import MeanAbsoluteError, MeanSquaredError
 
-from src.benchmarks.CausalPretraining.helpers.tools import (
+from lcm_pytorch.benchmarks.CausalPretraining.helpers.tools import (
     binary_metrics, custom_corr_regularization, weighted_mse)
-from src.benchmarks.CausalPretraining.model.informer import transformer
+from lcm_pytorch.benchmarks.CausalPretraining.model.informer import transformer
 
 # sys.path.append("models/CausalPretraining")
 

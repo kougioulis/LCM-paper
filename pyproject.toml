@@ -1,0 +1,91 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lcm-pytorch"
+version = "0.1.0"
+description = "Large Causal Models for Temporal Causal Discovery"
+authors = [
+    {name = "Nikolaos Kougioulis", email = "nikolaos.kougioulis@iacm.forth.gr"},
+]
+maintainers = [
+    {name = "Nikolaos Kougioulis", email = "nikolaos.kougioulis@iacm.forth.gr"},
+]
+license = {text = "Apache-2.0"}
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "torch",
+    "numpy<2",
+    "pandas",
+    "einops",
+    "torchmetrics",
+    "pytorch-lightning==2.0.8",
+]
+
+[project.optional-dependencies]
+# Classical causal-discovery baselines (used by the comparison notebooks).
+baselines = ["tigramite", "lingam", "dcor"]
+# Everything the reproduction notebooks need on top of the core.
+notebooks = [
+    "matplotlib",
+    "seaborn",
+    "networkx",
+    "scikit-learn",
+    "statsmodels",
+    "omegaconf",
+    "pyyaml",
+    "numba",
+    "prettytable",
+    "tqdm",
+]
+
+[tool.setuptools.packages.find]
+# Ship only the importable library; data/, logs/, notebooks/ stay out of the wheel.
+include = ["lcm_pytorch*"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+# Notebooks and vendored third-party benchmarks are not linted.
+extend-exclude = [
+    "notebooks",
+    "lcm_pytorch/benchmarks",
+    "lcm_pytorch/utils/causalnex",
+    "ACD",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "C4",   # flake8-comprehensions
+    "SIM",  # flake8-simplify
+    "RUF",  # ruff-specific rules
+]
+ignore = [
+    "E501",    # line-too-long (handled by formatter, not enforced)
+    "B008",    # function call in default arg (common torch/pl idiom)
+    "SIM108",  # ternary over if/else — hurts readability of research code
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]  # re-exports
+"tests/*" = ["E402"]      # sys.path juggling before imports
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+addopts = "-ra -q"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::UserWarning",
+    # pytorch-lightning 2.0.8 loads checkpoints via torch.load(weights_only=False),
+    # so can't pass the flag through load_from_checkpoint, hence notice silenced
+    "ignore:You are using .*weights_only.*:FutureWarning",
+]
