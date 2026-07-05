@@ -5,6 +5,9 @@
 </p>
 
 <div align="center">
+  <a href="https://github.com/kougioulis/LCM/actions/workflows/ci.yml">
+    <img src="https://github.com/kougioulis/LCM/actions/workflows/ci.yml/badge.svg" alt="CI">
+  </a>
   <a href="https://www.codefactor.io/repository/github/kougioulis/lcm">
     <img src="https://www.codefactor.io/repository/github/kougioulis/lcm/badge" alt="CodeFactor">
   </a>
@@ -54,12 +57,27 @@ Causal discovery for both cross-sectional and temporal data has traditionally fo
 
 ## Setup & Getting Started 
 
-### Conda Environment 🐍
+There are two ways to set things up, depending on what you need.
 
-We provide a conda environment for reproducibility purposes only. One can create a virtual conda environment using
+### 1. Conda environment (full reproduction) 🐍
+
+For reproducing the paper experiments (notebooks, baselines, plotting), create the CPU inference environment:
 
 - `conda env create -f environment.yaml`
-- `conda activate LCM` 
+- `conda activate LCM`
+
+### 2. pip install from GitHub (library only) 📦
+
+To just use the models/utilities as a package. Install CPU PyTorch first (the inference models are CPU-only), then the package:
+
+```bash
+pip install torch --index-url https://download.pytorch.org/whl/cpu
+pip install git+https://github.com/kougioulis/LCM.git
+```
+
+Optional extras: `pip install "lcm-pytorch[baselines] @ git+https://github.com/kougioulis/LCM.git"` for the classical baselines, or `[notebooks]` for the plotting/notebook dependencies.
+
+> Note: a bare `pip install` (no CPU index) pulls the CUDA build of PyTorch from PyPI. Use option 1 or the CPU index above for the intended CPU inference setup.
 
 
 ## Notebooks
@@ -115,11 +133,9 @@ This section shows how to load a pretrained Large Causal Model and perform causa
 
 ```python
 from pathlib import Path
-import sys
 import torch
-sys.path.append("..")  # add project root to PYTHONPATH
 
-from src.modules.lcm_module import LCMModule
+from lcm_pytorch.modules.lcm_module import LCMModule
 
 model_path = Path("/path/to/pretrained/checkpoints")  # adjust as needed
 
@@ -147,7 +163,7 @@ where $\epsilon(t)$ is independent Gaussian noise. Thus, the true causal graph c
 * $V_2 \rightarrow V_3$ (with lag 2)
 
 ```python
-from src.utils.misc_utils import run_illustrative_example
+from lcm_pytorch.utils.misc_utils import run_illustrative_example
 
 # Model-specific params
 MAX_SEQ_LEN = 500
@@ -192,7 +208,7 @@ if VAR_DIF > 0:
 ### 4. Perform Causal Discovery
 
 ```python
-from src.utils.utils import lagged_batch_crosscorrelation
+from lcm_pytorch.utils.utils import lagged_batch_crosscorrelation
 
 with torch.no_grad():
     corr = lagged_batch_crosscorrelation(X_cpd.unsqueeze(0), MAX_LAG)
@@ -210,7 +226,7 @@ with torch.no_grad():
 ### 5. Evaluate Causal Discovery Performance
 
 ```python
-from src.utils.metrics import custom_binary_metrics
+from lcm_pytorch.utils.metrics import custom_binary_metrics
 
 print(f"AUC: {custom_binary_metrics(pred, Y_cpd)[0]}")
 ```
