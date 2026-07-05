@@ -26,6 +26,11 @@ __pycache__/
 .Python
 .python-version
 
+# Packaging build artifacts
+*.egg-info/
+build/
+dist/
+
 # Virtual environments
 env/
 venv/
