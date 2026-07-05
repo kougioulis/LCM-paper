@@ -36,7 +36,7 @@ def test_corr_regularization_is_nonnegative_scalar():
     data = torch.randn(B, 40, D)
     predictions = torch.rand(B, D, D, max_lag)  # in [0, 1] like sigmoid output
     loss = corr_regularization(predictions, data)
-    
+
     assert loss.ndim == 0
     assert loss.item() >= 0.0
     assert torch.isfinite(loss)
