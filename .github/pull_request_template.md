@@ -30,4 +30,4 @@ it's really helpful.
 
 - [ ] Added in-code documentation (if/wherever needed)
 - [ ] Wrote/updated tests, passing (`pytest`)
-- [ ] Ran the linter (`ruff check src/modules src/utils/utils.py tests`)
+- [ ] Ran the linter (`ruff check lcm_pytorch/modules lcm_pytorch/utils/utils.py tests`)
