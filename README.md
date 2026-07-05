@@ -59,16 +59,16 @@ Causal discovery for both cross-sectional and temporal data has traditionally fo
 
 There are two ways to set things up, depending on what you need.
 
-### 1. Conda environment (full reproduction) 🐍
+### 1. Conda environment 🐍
 
 For reproducing the paper experiments (notebooks, baselines, plotting), create the CPU inference environment:
 
 - `conda env create -f environment.yaml`
 - `conda activate LCM`
 
-### 2. pip install from GitHub (library only) 📦
+### 2. pip install from GitHub
 
-To just use the models/utilities as a package. Install CPU PyTorch first (the inference models are CPU-only), then the package:
+You can also just use the models/utilities as a standalone package (`lcm_pytorch`). Install CPU PyTorch first (the inference models are CPU-only and no CUDA GPU is needed), then:
 
 ```bash
 pip install torch --index-url https://download.pytorch.org/whl/cpu
@@ -77,7 +77,8 @@ pip install git+https://github.com/kougioulis/LCM.git
 
 Optional extras: `pip install "lcm-pytorch[baselines] @ git+https://github.com/kougioulis/LCM.git"` for the classical baselines, or `[notebooks]` for the plotting/notebook dependencies.
 
-> Note: a bare `pip install` (no CPU index) pulls the CUDA build of PyTorch from PyPI. Use option 1 or the CPU index above for the intended CPU inference setup.
+> Note: a bare `pip install` (no CPU index) pulls the CUDA build of PyTorch from PyPI. 
+> Use option 1 or the CPU index above for the intended CPU inference setup.
 
 
 ## Notebooks
