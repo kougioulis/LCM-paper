@@ -4,8 +4,8 @@ Tests for the tensor helpers.
 
 import torch
 
-from src.utils.metrics import custom_binary_metrics
-from src.utils.utils import corr_regularization, lagged_batch_crosscorrelation
+from lcm_pytorch.utils.metrics import custom_binary_metrics
+from lcm_pytorch.utils.utils import corr_regularization, lagged_batch_crosscorrelation
 
 
 def test_binary_metrics_perfect_prediction():

@@ -1,6 +1,6 @@
 """Shared pytest fixtures and path setup.
 
-Adds the repository root to ``sys.path`` so ``import src...`` works no matter
+Adds the repository root to ``sys.path`` so ``import lcm_pytorch...`` works no matter
 where pytest is invoked from, and exposes a tiny model config so the tests run
 fast on CPU and never touch a checkpoint.
 """

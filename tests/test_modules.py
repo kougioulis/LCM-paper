@@ -6,8 +6,8 @@ No model artifact required, run anywhere (including CI).
 import pytest
 import torch
 
-from src.modules.informer_module import InformerModule
-from src.modules.lcm_module import LCMModule
+from lcm_pytorch.modules.informer_module import InformerModule
+from lcm_pytorch.modules.lcm_module import LCMModule
 
 MODULE_CLASSES = [LCMModule, InformerModule]
 
